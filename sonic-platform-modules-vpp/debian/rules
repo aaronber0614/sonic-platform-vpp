@@ -2,15 +2,31 @@
 # This file is a makefile used by debhelper to build the package
 DESTDIR := debian/platform-modules-vpp
 INSTALL_SERVICE_DIR := /lib/systemd/system
+KVERSION ?= $(shell uname -r)
+KERNEL_SRC := /lib/modules/$(KVERSION)
+MODULE_SRC_DIR := $(shell pwd)/files/kernel
+INSTALL_MODULE_DIR := $(DESTDIR)$(KERNEL_SRC)/extra
 # Use the minimal debhelper version
 %:
 	dh $@
+
+override_dh_auto_clean:
+	if [ -d "$(KERNEL_SRC)/build" ]; then \
+		$(MAKE) -C $(KERNEL_SRC)/build M=$(MODULE_SRC_DIR) clean; \
+	fi
+	dh_auto_clean
+
+override_dh_auto_build:
+	$(MAKE) -C $(KERNEL_SRC)/build M=$(MODULE_SRC_DIR) modules
+	dh_auto_build
 
 # Override the install step to copy the custom file
 override_dh_install:
 	dh_install
 	dh_installdirs $(INSTALL_SERVICE_DIR)
 	cp files/service/*.service $(DESTDIR)$(INSTALL_SERVICE_DIR)/.
+	install -D -m 644 files/kernel/sonic_stel.ko $(INSTALL_MODULE_DIR)/sonic_stel.ko
+	install -D -m 644 files/etc/modules-load.d/sonic-stel.conf $(DESTDIR)/etc/modules-load.d/sonic-stel.conf
 	install -D -m 755 files/etc/config-setup/factory-default-hooks.d/10-01-vpp-cfg-init $(DESTDIR)/etc/config-setup/factory-default-hooks.d/10-01-vpp-cfg-init
 	install -D -m 755 files/usr/bin/vpp_ports_setup.sh $(DESTDIR)/usr/bin/vpp_ports_setup.sh
 	install -D -m 755 files/usr/bin/vppcfg_load.py $(DESTDIR)/usr/bin/vppcfg_load.py
