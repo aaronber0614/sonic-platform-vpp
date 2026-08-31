@@ -475,6 +475,14 @@ sonic_ext_iface_loopback_set_action (u32 sw_if_index, u8 action)
   u8 prev;
   int rv;
 
+  /* Reject any value that is not one of the two defined actions. Without this
+   * an out-of-range action (e.g. 2) would be stored verbatim yet treated as
+   * FORWARD by the enable decision above, breaking the FORWARD<->DROP
+   * transition/refcount assumptions on later calls. */
+  if (action != SONIC_EXT_LOOPBACK_ACTION_FORWARD &&
+      action != SONIC_EXT_LOOPBACK_ACTION_DROP)
+    return VNET_API_ERROR_INVALID_VALUE;
+
   /* loopback_action_by_sw_if_index is written only here, from the main/API
    * thread. The ip4/ip6-loopback nodes read it on worker threads, but
    * vnet_feature_enable_disable() below performs a worker barrier sync, so the
